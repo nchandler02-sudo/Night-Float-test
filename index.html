@@ -1,0 +1,1451 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0a0e1a">
+<title>Night Float Companion</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;800;900&family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
+<style>
+:root {
+  --bg-deep: #0a0e1a;
+  --bg-mid: #0f172a;
+  --bg-light: #1a1035;
+  --bg-card: rgba(15, 23, 42, 0.85);
+  --bg-card-hover: rgba(30, 41, 70, 0.9);
+  --text-primary: #e2e8f0;
+  --text-secondary: #94a3b8;
+  --text-muted: #64748b;
+  --cyan: #22d3ee;
+  --emerald: #34d399;
+  --indigo: #6366f1;
+  --purple: #a855f7;
+  --pink: #ec4899;
+  --orange: #f97316;
+  --teal: #14b8a6;
+  --blue: #3b82f6;
+  --violet: #8b5cf6;
+  --red: #ef4444;
+  --green: #10b981;
+  --amber: #f59e0b;
+  --font-heading: 'Playfair Display', Georgia, serif;
+  --font-body: 'DM Sans', -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+  --sidebar-w: 280px;
+  --topbar-h: 56px;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { font-size: 16px; -webkit-text-size-adjust: 100%; }
+body {
+  font-family: var(--font-body);
+  background: linear-gradient(180deg, var(--bg-deep) 0%, var(--bg-mid) 40%, var(--bg-light) 100%);
+  color: var(--text-primary);
+  min-height: 100vh;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(100,116,139,0.35); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(100,116,139,0.55); }
+
+/* Ambient orbs */
+body::before, body::after {
+  content: ''; position: fixed; border-radius: 50%; pointer-events: none; z-index: 0; filter: blur(120px); opacity: 0.18;
+}
+body::before { width: 600px; height: 600px; background: var(--indigo); top: -150px; left: -150px; }
+body::after { width: 500px; height: 500px; background: var(--purple); bottom: -100px; right: -100px; }
+
+#root { position: relative; z-index: 1; }
+
+/* ─── Utility ─── */
+.gradient-text {
+  background: linear-gradient(135deg, #e2e8f0, #c7d2fe, #a78bfa);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.pulse-glow { animation: pulseGlow 2s ease-in-out infinite; }
+@keyframes pulseGlow { 0%,100% { opacity: 0.8; } 50% { opacity: 1; } }
+@keyframes heartbeat { 0%,100% { opacity: 0.7; } 50% { opacity: 1; } }
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+@keyframes slideIn { from { transform: translateY(-20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes flyUp { 0% { transform: translateY(0); opacity: 1; } 100% { transform: translateY(-40px); opacity: 0; } }
+@keyframes owlBounce { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
+@keyframes cardIn { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+
+.toast-container { position: fixed; top: 20px; right: 20px; z-index: 10000; display: flex; flex-direction: column; gap: 8px; pointer-events: none; }
+.toast {
+  pointer-events: auto; padding: 12px 20px; border-radius: 12px; font-size: 14px; font-weight: 600;
+  color: #fff; backdrop-filter: blur(12px); animation: slideIn 0.3s ease; max-width: 360px;
+  border: 1px solid rgba(255,255,255,0.1); box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+}
+.toast-xp { background: linear-gradient(135deg, rgba(34,211,238,0.9), rgba(52,211,153,0.9)); }
+.toast-level { background: linear-gradient(135deg, rgba(168,85,247,0.95), rgba(236,72,153,0.95)); }
+.toast-badge { background: linear-gradient(135deg, rgba(245,158,11,0.95), rgba(249,115,22,0.95)); }
+.toast-info { background: rgba(30,41,70,0.95); }
+.toast-shop { background: linear-gradient(135deg, rgba(99,102,241,0.95), rgba(139,92,246,0.95)); }
+
+/* XP fly animation */
+.xp-fly {
+  position: fixed; font-weight: 700; font-size: 18px; pointer-events: none; z-index: 9999;
+  animation: flyUp 1.2s ease-out forwards;
+  background: linear-gradient(135deg, var(--cyan), var(--emerald));
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+}
+
+/* ─── Sidebar ─── */
+.sidebar {
+  position: fixed; left: 0; top: 0; bottom: 0; width: var(--sidebar-w); z-index: 100;
+  background: linear-gradient(180deg, rgba(10,14,26,0.97) 0%, rgba(15,23,42,0.97) 100%);
+  backdrop-filter: blur(20px); border-right: 1px solid rgba(99,102,241,0.15);
+  display: flex; flex-direction: column; overflow-y: auto; overflow-x: hidden;
+  transition: transform 0.3s cubic-bezier(0.4,0,0.2,1);
+}
+.sidebar-header { padding: 20px 16px 12px; text-align: center; flex-shrink: 0; }
+.sidebar-logo { font-family: var(--font-heading); font-size: 20px; font-weight: 800; letter-spacing: -0.5px; }
+.sidebar-tagline { font-size: 11px; color: var(--text-muted); margin-top: 2px; letter-spacing: 0.5px; text-transform: uppercase; }
+
+/* Progress bar */
+.progress-section { padding: 12px 16px; flex-shrink: 0; }
+.progress-monitor {
+  background: rgba(15,23,42,0.6); border: 1px solid rgba(34,211,238,0.2); border-radius: 12px; padding: 12px;
+  position: relative; overflow: hidden;
+}
+.progress-monitor::before {
+  content: ''; position: absolute; inset: 0; border-radius: 12px;
+  background: linear-gradient(135deg, rgba(34,211,238,0.05), rgba(52,211,153,0.05)); pointer-events: none;
+}
+.progress-level-name { font-size: 13px; font-weight: 700; color: var(--cyan); margin-bottom: 2px; }
+.progress-level-num { font-size: 11px; color: var(--text-muted); }
+.progress-bar-track {
+  height: 24px; background: rgba(15,23,42,0.8); border-radius: 12px; margin: 8px 0;
+  position: relative; overflow: hidden; border: 1px solid rgba(34,211,238,0.15);
+}
+.progress-bar-fill {
+  height: 100%; border-radius: 12px; transition: width 0.6s cubic-bezier(0.4,0,0.2,1);
+  background: linear-gradient(90deg, var(--cyan), var(--emerald));
+  animation: heartbeat 1.2s ease-in-out infinite; position: relative;
+}
+.progress-owl {
+  position: absolute; top: 50%; transform: translateY(-50%); font-size: 18px;
+  transition: left 0.6s cubic-bezier(0.4,0,0.2,1); z-index: 2; filter: drop-shadow(0 0 4px rgba(34,211,238,0.5));
+  animation: owlBounce 2s ease-in-out infinite;
+}
+.progress-owl.spinning { animation: spin 0.6s ease-in-out; }
+.progress-xp-text { font-size: 11px; color: var(--text-secondary); display: flex; justify-content: space-between; }
+.multiplier-badge {
+  display: inline-flex; align-items: center; gap: 4px; margin-top: 6px; padding: 4px 10px;
+  background: rgba(168,85,247,0.15); border: 1px solid rgba(168,85,247,0.3); border-radius: 20px;
+  font-size: 14px; font-weight: 700; color: var(--purple); cursor: pointer; transition: all 0.2s;
+}
+.multiplier-badge:hover { background: rgba(168,85,247,0.25); }
+.multiplier-badge.high { color: var(--amber); border-color: rgba(245,158,11,0.4); background: rgba(245,158,11,0.12); animation: pulseGlow 1.5s ease-in-out infinite; }
+
+/* Coins */
+.coins-section { padding: 8px 16px; flex-shrink: 0; }
+.coins-display {
+  display: flex; align-items: center; gap: 8px; padding: 8px 12px;
+  background: rgba(245,158,11,0.08); border: 1px solid rgba(245,158,11,0.2); border-radius: 10px;
+  font-size: 14px; font-weight: 600; color: var(--amber); cursor: pointer; transition: all 0.2s;
+}
+.coins-display:hover { background: rgba(245,158,11,0.15); }
+
+/* Topic list */
+.topic-list { flex: 1; overflow-y: auto; padding: 8px 10px; }
+.topic-list-item {
+  display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 8px;
+  cursor: pointer; transition: all 0.15s; font-size: 13px; color: var(--text-secondary); margin-bottom: 2px;
+}
+.topic-list-item:hover { background: rgba(99,102,241,0.1); color: var(--text-primary); }
+.topic-list-item.active { background: rgba(99,102,241,0.15); color: var(--cyan); font-weight: 600; }
+.topic-list-item .dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+
+/* Weekly challenge widget */
+.challenge-widget { padding: 12px 16px; flex-shrink: 0; border-top: 1px solid rgba(99,102,241,0.1); }
+.challenge-title { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); margin-bottom: 6px; }
+.challenge-name { font-size: 13px; font-weight: 600; color: var(--amber); margin-bottom: 4px; }
+.challenge-progress-bar { height: 4px; background: rgba(245,158,11,0.15); border-radius: 2px; overflow: hidden; }
+.challenge-progress-fill { height: 100%; background: var(--amber); border-radius: 2px; transition: width 0.3s; }
+
+/* Settings */
+.sidebar-footer { padding: 12px 16px; flex-shrink: 0; border-top: 1px solid rgba(99,102,241,0.1); }
+.sound-toggle {
+  display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text-muted); cursor: pointer;
+}
+.toggle-switch {
+  width: 32px; height: 18px; background: rgba(100,116,139,0.3); border-radius: 9px;
+  position: relative; transition: background 0.2s; flex-shrink: 0;
+}
+.toggle-switch.on { background: rgba(34,211,238,0.5); }
+.toggle-switch::after {
+  content: ''; position: absolute; width: 14px; height: 14px; border-radius: 50%;
+  background: white; top: 2px; left: 2px; transition: transform 0.2s;
+}
+.toggle-switch.on::after { transform: translateX(14px); }
+
+/* ─── Mobile ─── */
+.mobile-topbar {
+  display: none; position: fixed; top: 0; left: 0; right: 0; height: var(--topbar-h); z-index: 200;
+  background: rgba(10,14,26,0.95); backdrop-filter: blur(16px); border-bottom: 1px solid rgba(99,102,241,0.15);
+  padding: 0 12px; align-items: center; gap: 10px;
+}
+.hamburger { background: none; border: none; color: var(--text-primary); font-size: 22px; cursor: pointer; padding: 4px; }
+.mobile-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 99; }
+@media (max-width: 768px) {
+  .sidebar { transform: translateX(-100%); z-index: 300; width: 85%; max-width: 320px; }
+  .sidebar.open { transform: translateX(0); }
+  .mobile-topbar { display: flex; }
+  .mobile-overlay.open { display: block; }
+  .main-content { margin-left: 0 !important; padding-top: calc(var(--topbar-h) + 12px) !important; }
+}
+
+/* ─── Main Content ─── */
+.main-content { margin-left: var(--sidebar-w); padding: 24px 32px 60px; min-height: 100vh; max-width: 900px; }
+@media (max-width: 900px) { .main-content { padding: 24px 16px 60px; } }
+
+/* Home grid */
+.home-hero { text-align: center; padding: 40px 0 30px; }
+.home-title { font-family: var(--font-heading); font-size: clamp(28px,5vw,42px); font-weight: 800; line-height: 1.1; margin-bottom: 8px; }
+.home-subtitle { font-size: 15px; color: var(--text-secondary); max-width: 500px; margin: 0 auto; line-height: 1.5; }
+.streak-banner {
+  display: inline-flex; align-items: center; gap: 8px; padding: 8px 18px; margin-top: 16px;
+  background: linear-gradient(135deg, rgba(249,115,22,0.15), rgba(245,158,11,0.15));
+  border: 1px solid rgba(249,115,22,0.3); border-radius: 24px; font-size: 14px; font-weight: 600; color: var(--orange);
+}
+.topic-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; padding-top: 8px; }
+.topic-card {
+  background: var(--bg-card); border-radius: 14px; padding: 18px 20px; cursor: pointer;
+  border-left: 4px solid; transition: all 0.2s ease; position: relative; overflow: hidden;
+  animation: cardIn 0.4s ease both;
+}
+.topic-card:hover { transform: translateY(-3px); background: var(--bg-card-hover); }
+.topic-card-title { font-family: var(--font-heading); font-size: 17px; font-weight: 700; margin-bottom: 6px; }
+.topic-card-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 8px; }
+.tag-pill {
+  font-size: 10px; padding: 2px 8px; border-radius: 10px; font-weight: 500;
+  background: rgba(99,102,241,0.12); color: var(--text-muted); border: 1px solid rgba(99,102,241,0.15);
+}
+.topic-card-meta { font-size: 12px; color: var(--text-muted); display: flex; gap: 12px; }
+.topic-card-check { position: absolute; top: 12px; right: 12px; font-size: 16px; opacity: 0.7; }
+
+/* ─── Topic Detail ─── */
+.back-btn {
+  display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text-muted);
+  cursor: pointer; padding: 6px 12px; border-radius: 8px; transition: all 0.15s; margin-bottom: 16px;
+  background: none; border: none; font-family: var(--font-body);
+}
+.back-btn:hover { color: var(--text-primary); background: rgba(99,102,241,0.1); }
+.topic-detail-title { font-family: var(--font-heading); font-size: clamp(24px,4vw,32px); font-weight: 800; margin-bottom: 20px; }
+
+.section-card {
+  background: var(--bg-card); border-radius: 14px; padding: 20px 24px; margin-bottom: 16px;
+  border: 1px solid rgba(99,102,241,0.08); animation: cardIn 0.3s ease both;
+}
+.section-header { display: flex; align-items: center; gap: 8px; font-size: 16px; font-weight: 700; margin-bottom: 12px; }
+.section-header .icon { font-size: 18px; }
+.section-card.panic { border-left: 3px solid var(--red); background: rgba(239,68,68,0.04); }
+.section-card.icu { border-left: 3px solid var(--orange); background: rgba(249,115,22,0.04); }
+.section-card.orders { border-left: 3px solid var(--blue); background: rgba(59,130,246,0.04); }
+.section-card.cdi { border-left: 3px solid var(--teal); background: rgba(20,184,166,0.04); }
+
+.bullet-list { list-style: none; padding: 0; }
+.bullet-list li { padding: 6px 0 6px 16px; font-size: 14px; line-height: 1.6; color: var(--text-secondary); position: relative; }
+.bullet-list li::before { content: '›'; position: absolute; left: 0; color: var(--text-muted); font-weight: 700; }
+.bullet-list li.guideline { border-left: 2px solid var(--emerald); padding-left: 14px; margin-left: 2px; }
+.bullet-list li.guideline::before { display: none; }
+.bullet-list li.pitfall { border-left: 2px solid var(--amber); padding-left: 14px; margin-left: 2px; }
+.bullet-list li.pitfall::before { display: none; }
+.order-pill {
+  display: inline; padding: 1px 8px; border-radius: 6px; font-weight: 600; font-size: 13px;
+  background: rgba(59,130,246,0.15); color: var(--cyan); border: 1px solid rgba(59,130,246,0.2);
+}
+
+/* Quiz cards */
+.quiz-card { background: var(--bg-card); border-radius: 14px; padding: 20px 24px; margin-bottom: 14px; border: 1px solid rgba(99,102,241,0.08); }
+.quiz-stem { font-size: 14px; line-height: 1.7; color: var(--text-secondary); margin-bottom: 16px; }
+.quiz-options { display: flex; flex-direction: column; gap: 8px; }
+.quiz-option {
+  display: flex; align-items: flex-start; gap: 10px; padding: 12px 16px; border-radius: 10px;
+  border: 1px solid rgba(99,102,241,0.15); background: rgba(15,23,42,0.5); cursor: pointer;
+  transition: all 0.15s; font-size: 14px; color: var(--text-secondary); line-height: 1.5;
+}
+.quiz-option:hover:not(.disabled) { border-color: rgba(99,102,241,0.4); background: rgba(99,102,241,0.08); }
+.quiz-option .letter { font-weight: 700; color: var(--text-muted); min-width: 20px; }
+.quiz-option.correct { border-color: var(--emerald); background: rgba(52,211,153,0.1); color: var(--emerald); }
+.quiz-option.incorrect { border-color: var(--red); background: rgba(239,68,68,0.1); color: var(--red); }
+.quiz-option.correct-highlight { border-color: rgba(52,211,153,0.4); background: rgba(52,211,153,0.05); }
+.quiz-option.disabled { cursor: default; opacity: 0.7; }
+.quiz-explanation {
+  margin-top: 14px; padding: 14px 16px; border-radius: 10px;
+  background: rgba(34,211,238,0.05); border: 1px solid rgba(34,211,238,0.15);
+  font-size: 13px; line-height: 1.6; color: var(--text-secondary); animation: fadeIn 0.4s ease;
+}
+
+/* Flip cards */
+.micro-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; }
+.flip-card {
+  perspective: 800px; height: 160px; cursor: pointer;
+}
+.flip-card-inner {
+  position: relative; width: 100%; height: 100%; transition: transform 0.5s ease;
+  transform-style: preserve-3d;
+}
+.flip-card.flipped .flip-card-inner { transform: rotateY(180deg); }
+.flip-card-front, .flip-card-back {
+  position: absolute; inset: 0; backface-visibility: hidden; border-radius: 12px; padding: 16px;
+  display: flex; flex-direction: column; justify-content: center; font-size: 13px; line-height: 1.5;
+  border: 1px solid rgba(99,102,241,0.12);
+}
+.flip-card-front { background: var(--bg-card); color: var(--text-secondary); }
+.flip-card-back { background: rgba(34,211,238,0.06); border-color: rgba(34,211,238,0.2); color: var(--cyan); transform: rotateY(180deg); }
+.flip-hint { font-size: 11px; color: var(--text-muted); margin-top: 8px; }
+.flip-card.done .flip-card-front { opacity: 0.5; }
+.flip-card.done .flip-card-front::after {
+  content: '✓'; position: absolute; top: 8px; right: 10px; font-size: 16px; color: var(--emerald);
+}
+
+/* References */
+.ref-link {
+  display: block; padding: 8px 0; font-size: 13px; color: var(--blue); text-decoration: none;
+  border-bottom: 1px solid rgba(59,130,246,0.1); transition: color 0.15s;
+}
+.ref-link:hover { color: var(--cyan); }
+
+/* ─── Modals ─── */
+.modal-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 1000;
+  display: flex; align-items: center; justify-content: center; padding: 20px;
+  animation: fadeIn 0.2s ease;
+}
+.modal-content {
+  background: linear-gradient(180deg, #0f172a, #1a1035); border-radius: 20px;
+  max-width: 600px; width: 100%; max-height: 85vh; overflow-y: auto;
+  border: 1px solid rgba(99,102,241,0.2); box-shadow: 0 24px 80px rgba(0,0,0,0.6);
+  animation: slideIn 0.3s ease;
+}
+.modal-header {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 20px 24px 0; position: sticky; top: 0; z-index: 2;
+}
+.modal-close {
+  background: rgba(100,116,139,0.2); border: none; color: var(--text-secondary);
+  width: 32px; height: 32px; border-radius: 50%; cursor: pointer; font-size: 16px;
+  display: flex; align-items: center; justify-content: center; transition: all 0.15s;
+}
+.modal-close:hover { background: rgba(239,68,68,0.2); color: var(--red); }
+.modal-body { padding: 16px 24px 24px; }
+
+/* Badge grid */
+.badge-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); gap: 12px; margin-top: 16px; }
+.badge-item {
+  display: flex; flex-direction: column; align-items: center; text-align: center;
+  padding: 12px 4px; border-radius: 12px; transition: all 0.2s; cursor: default;
+}
+.badge-icon {
+  width: 48px; height: 48px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+  font-size: 22px; margin-bottom: 6px; position: relative;
+}
+.badge-icon.unlocked {
+  background: linear-gradient(135deg, rgba(245,158,11,0.2), rgba(249,115,22,0.2));
+  border: 2px solid rgba(245,158,11,0.4); box-shadow: 0 0 16px rgba(245,158,11,0.2);
+}
+.badge-icon.unlocked::after {
+  content: ''; position: absolute; inset: -2px; border-radius: 50%;
+  background: linear-gradient(135deg, transparent 30%, rgba(255,255,255,0.2) 50%, transparent 70%);
+  background-size: 200% 200%; animation: shimmer 3s linear infinite;
+}
+.badge-icon.locked { background: rgba(30,41,70,0.6); border: 2px solid rgba(100,116,139,0.2); filter: grayscale(1); opacity: 0.5; }
+.badge-name { font-size: 10px; font-weight: 600; color: var(--text-secondary); line-height: 1.2; }
+.badge-name.locked { color: var(--text-muted); }
+
+/* Shop */
+.shop-tabs { display: flex; gap: 4px; overflow-x: auto; padding-bottom: 12px; }
+.shop-tab {
+  padding: 6px 14px; border-radius: 20px; font-size: 12px; font-weight: 600;
+  background: rgba(30,41,70,0.6); color: var(--text-muted); cursor: pointer;
+  border: 1px solid rgba(99,102,241,0.1); white-space: nowrap; transition: all 0.15s;
+}
+.shop-tab.active { background: rgba(99,102,241,0.2); color: var(--indigo); border-color: rgba(99,102,241,0.3); }
+.shop-item {
+  display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 12px;
+  background: rgba(15,23,42,0.5); border: 1px solid rgba(99,102,241,0.08); margin-bottom: 8px;
+  transition: all 0.15s;
+}
+.shop-item:hover { background: rgba(30,41,70,0.5); }
+.shop-item-info { flex: 1; }
+.shop-item-name { font-size: 13px; font-weight: 600; }
+.shop-item-desc { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+.shop-btn {
+  padding: 6px 14px; border-radius: 8px; font-size: 12px; font-weight: 700; border: none; cursor: pointer;
+  transition: all 0.15s;
+}
+.shop-btn.buy { background: rgba(245,158,11,0.2); color: var(--amber); }
+.shop-btn.buy:hover { background: rgba(245,158,11,0.35); }
+.shop-btn.owned { background: rgba(52,211,153,0.15); color: var(--emerald); cursor: default; }
+.shop-btn.equip { background: rgba(99,102,241,0.2); color: var(--indigo); }
+.shop-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* Loading screen */
+.loading-screen {
+  position: fixed; inset: 0; z-index: 9999; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; background: var(--bg-deep);
+}
+.loading-owl { font-size: 48px; margin-bottom: 16px; animation: owlBounce 1s ease-in-out infinite; }
+.loading-bar { width: 200px; height: 4px; background: rgba(99,102,241,0.2); border-radius: 2px; overflow: hidden; margin-top: 12px; }
+.loading-bar-fill { height: 100%; background: linear-gradient(90deg, var(--cyan), var(--emerald)); border-radius: 2px; transition: width 0.3s; }
+.loading-text { font-size: 13px; color: var(--text-muted); margin-top: 8px; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useEffect, useRef, useCallback, useMemo, createContext, useContext } = React;
+
+// ═══════════════════════════════════════════════════
+// CONSTANTS
+// ═══════════════════════════════════════════════════
+const ACCENT_COLORS = ["#6366f1","#a855f7","#ec4899","#f97316","#14b8a6","#3b82f6","#8b5cf6","#ef4444","#10b981","#f59e0b"];
+const LEVELS = [
+  { level: 1, name: "Pager Puppy", xp: 0 },
+  { level: 2, name: "Shadow Intern", xp: 500 },
+  { level: 3, name: "Night Rookie", xp: 1200 },
+  { level: 4, name: "Electrolyte Enforcer", xp: 2500 },
+  { level: 5, name: "Sepsis Slayer", xp: 4500 },
+  { level: 6, name: "Code Blue Cowboy", xp: 7500 },
+  { level: 7, name: "Hypo/Hyper Hero", xp: 11500 },
+  { level: 8, name: "Senior Nocturnist", xp: 17000 },
+  { level: 9, name: "Moonlight Master", xp: 24000 },
+  { level: 10, name: "Legend of the Night Float", xp: 35000 },
+];
+const STORAGE_KEY = 'nightFloatCompanion';
+
+const WEEKLY_CHALLENGES = [
+  { name: "Topic Blitz", desc: "Open and complete quizzes in 3 different topics", target: 3 },
+  { name: "Perfect Night", desc: "Get 5 quiz cases correct in a row", target: 5 },
+  { name: "Flip Master", desc: "Flip 20 micro-questions this week", target: 20 },
+  { name: "Speed Round", desc: "Complete any topic quiz in under 3 min", target: 1 },
+  { name: "Deep Dive", desc: "Perfect Mastery on any 1 topic", target: 1 },
+  { name: "Knowledge Buffet", desc: "Open 5 different topics this week", target: 5 },
+  { name: "Night Shift Grind", desc: "Earn 500 XP in one session", target: 500 },
+];
+
+const SHOP_ITEMS = {
+  avatars: [
+    { id: 'coffee-iv-hat', name: 'Coffee IV Drip Hat', desc: 'Tiny IV bag of coffee', price: 100, emoji: '☕' },
+    { id: 'pager-head', name: 'Tiny Pager on Head', desc: 'Classic pager perched on top', price: 150, emoji: '📟' },
+    { id: 'zombie-skin', name: 'Zombie Resident Skin', desc: 'Post-call owl with bags', price: 200, emoji: '🧟' },
+    { id: 'stethoscope', name: 'Stethoscope of Legend', desc: 'Golden stethoscope', price: 250, emoji: '🩺' },
+    { id: 'scrub-cap', name: 'Scrub Cap Supreme', desc: 'Fancy patterned cap', price: 300, emoji: '🧢' },
+    { id: 'code-cape', name: 'Code Blue Cape', desc: 'Superhero cape', price: 350, emoji: '🦸' },
+    { id: 'nvg', name: 'Night Vision Goggles', desc: 'Tactical NVGs', price: 400, emoji: '🥽' },
+    { id: 'halo', name: 'Golden Attending Halo', desc: 'Glowing halo', price: 500, emoji: '😇' },
+  ],
+  memes: [
+    { id: 'meme-01', name: '"Paged at 3 AM for constipation"', price: 80 },
+    { id: 'meme-02', name: '"Is this SVT or sinus tach at 4 AM"', price: 80 },
+    { id: 'meme-03', name: '"Night float starter pack"', price: 100 },
+    { id: 'meme-04', name: '"Why I woke you at 2 AM"', price: 100 },
+    { id: 'meme-05', name: '"47 patients on cross-cover"', price: 120 },
+    { id: 'meme-06', name: '"Pager silent for 5 minutes"', price: 120 },
+    { id: 'meme-07', name: '"Senior: I\'ve seen worse"', price: 150 },
+  ],
+  certs: [
+    { id: 'cert-survived', name: 'I Survived Night Float', desc: 'Personalized certificate', price: 120 },
+    { id: 'cert-pager', name: 'Perfect Pager Puller', desc: '100+ cases answered', price: 150 },
+    { id: 'cert-legend', name: 'Legendary Nocturnist', desc: 'Level 8+ achievement', price: 200 },
+  ],
+  boosts: [
+    { id: 'boost-24h', name: '24-Hour ×1.5 Boost', desc: 'Temp multiplier (consumable)', price: 300, consumable: true },
+    { id: 'custom-bar', name: 'Custom Progress Bar Color', desc: 'Choose your gradient', price: 200 },
+    { id: 'hoot-pack', name: 'Special Owl Hoot Pack', desc: 'Dramatic level-up sound', price: 150 },
+  ]
+};
+
+const BADGE_DEFS = [
+  // Topic Mastery
+  { id: 'airway-avenger', name: 'Airway Avenger', emoji: '🫁', cat: 'topic', keywords: ['airway','respiratory failure','respiratory'] },
+  { id: 'withdrawal-warrior', name: 'Withdrawal Warrior', emoji: '🛡️', cat: 'topic', keywords: ['alcohol withdrawal'] },
+  { id: 'delirium-detective', name: 'Delirium Detective', emoji: '🔍', cat: 'topic', keywords: ['altered mental status','delirium','ams'] },
+  { id: 'epi-ninja', name: 'Epi Ninja', emoji: '💉', cat: 'topic', keywords: ['anaphylaxis'] },
+  { id: 'stewardship-sensei', name: 'Stewardship Sensei', emoji: '🧬', cat: 'topic', keywords: ['antibiotic stewardship'] },
+  { id: 'rhythm-rebel', name: 'Rhythm Rebel', emoji: '💓', cat: 'topic', keywords: ['arrhythmias'] },
+  { id: 'endo-expert', name: 'Endo Expert', emoji: '🧪', cat: 'topic', keywords: ['endocrine','thyroid','adrenal'] },
+  { id: 'gi-bleed-gladiator', name: 'GI Bleed Gladiator', emoji: '⚔️', cat: 'topic', keywords: ['gi bleeding','gi bleed'] },
+  { id: 'glucose-gladiator', name: 'Glucose Gladiator', emoji: '🍬', cat: 'topic', keywords: ['dka','hhs','glucose emergencies'] },
+  { id: 'hypertension-hunter', name: 'Hypertension Hunter', emoji: '🎯', cat: 'topic', keywords: ['hypertensive emergency'] },
+  { id: 'fever-fighter', name: 'Fever Fighter', emoji: '🌡️', cat: 'topic', keywords: ['fever','empiric antibiotics'] },
+  { id: 'neuro-ninja', name: 'Neuro Ninja', emoji: '🧠', cat: 'topic', keywords: ['neurologic emergencies','stroke','status epilepticus'] },
+  // Streak
+  { id: '3am-warrior', name: '3AM Warrior', emoji: '⏰', cat: 'streak', condition: 'streak3' },
+  { id: 'night-owl-legend', name: 'Night Owl Legend', emoji: '🦉', cat: 'streak', condition: 'streak7' },
+  { id: 'nocturnist-ironman', name: 'Nocturnist Ironman', emoji: '🦾', cat: 'streak', condition: 'streak14' },
+  { id: 'eternal-moonlight', name: 'Eternal Moonlight', emoji: '🌙', cat: 'streak', condition: 'streak30' },
+  { id: '100-pager-pulls', name: '100 Pager Pulls', emoji: '📟', cat: 'streak', condition: 'quiz100' },
+  { id: 'topic-tourist', name: 'Topic Tourist', emoji: '🗺️', cat: 'streak', condition: 'topics15' },
+  { id: 'daily-dose', name: 'Daily Dose', emoji: '💊', cat: 'streak', condition: 'days50' },
+  { id: 'weekend-warrior', name: 'Weekend Warrior', emoji: '🏆', cat: 'streak', condition: 'weekendChallenge' },
+  // Skill
+  { id: 'k-ninja', name: 'K+ Ninja', emoji: '⚡', cat: 'skill', condition: 'electrolyteQ10' },
+  { id: 'sepsis-slayer-badge', name: 'Sepsis Slayer', emoji: '🔥', cat: 'skill', condition: 'sepsisPerf' },
+  { id: 'hot-pager', name: 'Hot Pager', emoji: '📱', cat: 'skill', condition: 'hotStreak' },
+  { id: 'speed-demon', name: 'Speed Demon', emoji: '⚡', cat: 'skill', condition: 'speed4min' },
+  { id: 'perfect-round', name: 'Perfect Round', emoji: '🎯', cat: 'skill', condition: 'perfectQuiz' },
+  { id: 'master-multiplier', name: 'Master Multiplier', emoji: '✨', cat: 'skill', condition: 'mult5x' },
+  { id: 'quiz-crusher', name: 'Quiz Crusher', emoji: '💪', cat: 'skill', condition: 'quiz200' },
+  // Secret
+  { id: 'coffee-iv-addict', name: 'Coffee IV Addict', emoji: '☕', cat: 'secret', condition: 'coins500' },
+  { id: 'midnight-myth', name: 'Midnight Myth', emoji: '🌌', cat: 'secret', condition: 'lvl10at3am' },
+  { id: 'ama-whisperer', name: 'AMA Whisperer', emoji: '👻', cat: 'secret', condition: 'allMicro' },
+  { id: 'legend-nf', name: 'Legend of NF', emoji: '👑', cat: 'secret', condition: 'allBadges' },
+  { id: 'ghost-pager', name: 'Ghost Pager', emoji: '👻', cat: 'secret', condition: 'ghost10' },
+];
+
+// ═══════════════════════════════════════════════════
+// MARKDOWN PARSER
+// ═══════════════════════════════════════════════════
+function parseMD(raw, filename, idx) {
+  const lines = raw.split('\n');
+  const topic = { id: filename.replace('.md',''), index: String(idx+1).padStart(2,'0'), tags: [], date: '', panic_card: [], brief_overview: [], icu_consult_triggers: [], orders_to_place_now: [], abim_cases: [], micro_questions: [], references: [], cdi: [] };
+
+  // Title
+  const titleLine = lines.find(l => /^# /.test(l));
+  topic.title = titleLine ? titleLine.replace(/^# /, '').trim() : filename.replace('.md','').replace(/-/g,' ');
+
+  // YAML / Tags / Date
+  const tagsLine = lines.find(l => /^tags:\s*\[/.test(l) || /^Tags:\s/.test(l));
+  if (tagsLine) {
+    const m = tagsLine.match(/\[([^\]]+)\]/);
+    if (m) topic.tags = m[1].split(',').map(t => t.trim().replace(/['"]/g,''));
+    else { const m2 = tagsLine.match(/Tags:\s*(.*)/); if(m2) topic.tags = m2[1].split(',').map(t=>t.trim()); }
+  }
+  const dateLine = lines.find(l => /^(version|Date):\s/.test(l));
+  if (dateLine) topic.date = dateLine.split(':').slice(1).join(':').trim();
+
+  // Sections split
+  const sectionMap = {};
+  let curSection = null;
+  for (const line of lines) {
+    if (/^## /.test(line)) { curSection = line.replace(/^## /,'').trim(); sectionMap[curSection] = []; continue; }
+    if (curSection) sectionMap[curSection].push(line);
+  }
+
+  // Bullet parser
+  const bullets = (key) => {
+    const sec = sectionMap[key];
+    if (!sec) return [];
+    return sec.filter(l => /^- /.test(l)).map(l => l.replace(/^- /,'').trim());
+  };
+
+  topic.panic_card = bullets('Panic Card');
+  topic.brief_overview = bullets('Brief Overview');
+  topic.icu_consult_triggers = bullets('Top ICU/Consult Triggers') || bullets('ICU Triggers');
+  topic.orders_to_place_now = bullets('Orders to Place Now') || bullets('Orders');
+  topic.cdi = bullets('CDI: What to Document Clearly Tonight') || bullets('CDI');
+
+  // Quiz parsing — handles ## ABIM‑Style Question N / ## Second ABIM‑Style Case
+  // Each quiz section has ### Stem, ### Options, ### Correct answer, ### Rationale sub-headings
+  const quizSectionKeys = Object.keys(sectionMap).filter(k => /abim|quiz.*case/i.test(k));
+  let caseIndex = 0;
+  quizSectionKeys.forEach(sectionKey => {
+    const sectionLines = sectionMap[sectionKey];
+    // Split this section's lines by ### sub-headings into a map
+    const subMap = {};
+    let curSub = '_pre';
+    subMap[curSub] = [];
+    for (const line of sectionLines) {
+      if (/^### /.test(line)) { curSub = line.replace(/^### /,'').trim().toLowerCase(); subMap[curSub] = []; continue; }
+      if (subMap[curSub]) subMap[curSub].push(line);
+    }
+
+    // Extract stem: all non-empty lines under ### Stem
+    const stemLines = (subMap['stem'] || []).filter(l => l.trim() && !/^What changed/i.test(l.trim()));
+    const stem = stemLines.join(' ').replace(/\s+/g,' ').trim();
+
+    // Extract options: lines starting with A.-E. under ### Options
+    const optionLines = (subMap['options'] || []).filter(l => /^[A-E]\.\s/.test(l.trim()));
+    const options = optionLines.map(l => {
+      const trimmed = l.trim();
+      return { letter: trimmed[0], text: trimmed.slice(3).trim() };
+    });
+
+    // Extract correct answer
+    const correctLines = (subMap['correct answer'] || subMap['correct'] || []).filter(l => l.trim());
+    const correct = correctLines.length ? correctLines[0].trim().charAt(0) : '';
+
+    // Extract rationale/explanation
+    const ratLines = (subMap['rationale'] || subMap['explanation'] || []).filter(l => l.trim() && !/^What changed/i.test(l.trim()));
+    const explanation = ratLines.join(' ').replace(/\s+/g,' ').replace(/citeturn\d+search\d+/g,'').trim();
+
+    if (stem && options.length >= 2 && correct) {
+      topic.abim_cases.push({
+        case_id: topic.index + String.fromCharCode(65 + caseIndex),
+        stem, options, correct, explanation
+      });
+      caseIndex++;
+    }
+  });
+
+  // Self-check / micro-questions
+  const microKeys = Object.keys(sectionMap).filter(k => /self.?check|micro/i.test(k) || /check.*yourself/i.test(k));
+  microKeys.forEach(k => {
+    const sec = sectionMap[k];
+    let qi = 0;
+    for (let i = 0; i < sec.length; i++) {
+      if (/^- Q:\s/.test(sec[i])) {
+        const q = sec[i].replace(/^- Q:\s*/,'').trim();
+        let a = '';
+        if (i+1 < sec.length && /^\s+A:\s/.test(sec[i+1])) a = sec[i+1].replace(/^\s+A:\s*/,'').trim();
+        qi++;
+        topic.micro_questions.push({ q_id: topic.index + 'M' + String(qi).padStart(2,'0'), question: q, answer: a });
+      }
+    }
+  });
+
+  // References
+  const refKeys = Object.keys(sectionMap).filter(k => /reference|guideline.*key/i.test(k));
+  refKeys.forEach(k => {
+    sectionMap[k].filter(l => /^- /.test(l)).forEach(l => {
+      const text = l.replace(/^- /,'').replace(/citeturn\d+search\d+/g,'').trim();
+      const parts = text.split(/\s*[|—–]\s*(?=https?:)/);
+      topic.references.push({ label: parts[0]?.trim(), url: parts[1]?.trim() || '' });
+    });
+  });
+
+  return topic;
+}
+
+// ═══════════════════════════════════════════════════
+// SOUND ENGINE
+// ═══════════════════════════════════════════════════
+const SoundEngine = {
+  ctx: null,
+  getCtx() { if(!this.ctx) this.ctx = new (window.AudioContext||window.webkitAudioContext)(); return this.ctx; },
+  play(type) {
+    try {
+      const ctx = this.getCtx();
+      const o = ctx.createOscillator();
+      const g = ctx.createGain();
+      o.connect(g); g.connect(ctx.destination);
+      g.gain.value = 0.08;
+      const now = ctx.currentTime;
+      if(type==='xp') { o.frequency.value=800; o.type='sine'; o.start(now); o.stop(now+0.08); }
+      else if(type==='correct') { o.frequency.value=880; o.type='sine'; o.start(now); o.stop(now+0.12); }
+      else if(type==='wrong') { o.frequency.value=200; o.type='square'; g.gain.value=0.04; o.start(now); o.stop(now+0.15); }
+      else if(type==='levelup') { o.frequency.setValueAtTime(600,now); o.frequency.linearRampToValueAtTime(400,now+0.3); o.type='sine'; o.start(now); o.stop(now+0.3); }
+      else if(type==='badge') { o.frequency.setValueAtTime(500,now); o.frequency.linearRampToValueAtTime(900,now+0.15); o.type='sine'; o.start(now); o.stop(now+0.15); }
+      else if(type==='coin') { o.frequency.value=1200; o.type='triangle'; o.start(now); o.stop(now+0.1); }
+      else if(type==='multiplier') { o.frequency.setValueAtTime(400,now); o.frequency.linearRampToValueAtTime(1200,now+0.2); o.type='sine'; o.start(now); o.stop(now+0.2); }
+    } catch(e) {}
+  }
+};
+
+// ═══════════════════════════════════════════════════
+// GAME STATE
+// ═══════════════════════════════════════════════════
+function getDefaultState() {
+  return {
+    xp: 0, level: 1, coins: 0, coinsLifetime: 0,
+    streak: { count: 0, lastActiveDate: '' },
+    daysLogged: [],
+    topicsOpened: [],
+    quizAnswers: {}, quizCorrect: {},
+    microFlipped: [],
+    badges: [],
+    shop: { purchased: [], equipped: { avatar: null, meme: null, barColor: null } },
+    hotStreak: { count: 0, bonusExpiresAt: null },
+    weeklyChallenge: { week: '', progress: 0, completed: false },
+    challengeBonus: { multiplier: 1, expiresAt: null },
+    boostExpiry: null,
+    soundEnabled: false,
+    consecutiveCorrect: 0,
+    sessionStartXP: 0,
+    topicStartTimes: {},
+    nightQuizCorrect: 0, nightQuizTotal: 0, nightStart: null,
+  };
+}
+
+function loadState() {
+  try { const s = localStorage.getItem(STORAGE_KEY); return s ? { ...getDefaultState(), ...JSON.parse(s) } : getDefaultState(); }
+  catch { return getDefaultState(); }
+}
+
+function saveState(state) {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch(e) { console.warn('Storage save failed:', e); }
+}
+
+// ═══════════════════════════════════════════════════
+// HELPER FUNCTIONS
+// ═══════════════════════════════════════════════════
+function getLevelInfo(xp) {
+  let current = LEVELS[0];
+  for (let i = LEVELS.length - 1; i >= 0; i--) { if (xp >= LEVELS[i].xp) { current = LEVELS[i]; break; } }
+  const next = LEVELS[current.level] || null;
+  const prevXp = current.xp;
+  const nextXp = next ? next.xp : current.xp;
+  const progress = next ? (xp - prevXp) / (nextXp - prevXp) : 1;
+  return { ...current, nextXp, progress: Math.min(1, Math.max(0, progress)), prevXp };
+}
+
+function getToday() { return new Date().toISOString().split('T')[0]; }
+function getISOWeek() {
+  const d = new Date(); d.setHours(0,0,0,0); d.setDate(d.getDate()+3-(d.getDay()+6)%7);
+  const w = Math.ceil((((d-new Date(d.getFullYear(),0,4))/86400000)+1)/7);
+  return `${d.getFullYear()}-W${String(w).padStart(2,'0')}`;
+}
+function isNightOwlHours() { const h = new Date().getHours(); return h >= 22 || h < 6; }
+function isWeekend() { const d = new Date().getDay(); return d === 0 || d === 6; }
+
+function getStreakMultiplier(count) {
+  if (count >= 30) return 3.0;
+  if (count >= 14) return 2.5;
+  if (count >= 7) return 2.0;
+  if (count >= 3) return 1.5;
+  return 1.0;
+}
+
+function getWeeklyChallenge() {
+  const w = getISOWeek();
+  const weekNum = parseInt(w.split('-W')[1]) || 0;
+  const idx = weekNum % WEEKLY_CHALLENGES.length;
+  return { ...WEEKLY_CHALLENGES[idx], week: w };
+}
+
+// ═══════════════════════════════════════════════════
+// CONTEXT
+// ═══════════════════════════════════════════════════
+const GameContext = createContext();
+
+// ═══════════════════════════════════════════════════
+// APP
+// ═══════════════════════════════════════════════════
+function App() {
+  const [topics, setTopics] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [loadProgress, setLoadProgress] = useState(0);
+  const [state, setState] = useState(loadState);
+  const [view, setView] = useState('home');
+  const [activeTopic, setActiveTopic] = useState(null);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [toasts, setToasts] = useState([]);
+  const [showProfile, setShowProfile] = useState(false);
+  const [showShop, setShowShop] = useState(false);
+  const [owlSpin, setOwlSpin] = useState(false);
+  const toastIdRef = useRef(0);
+
+  // Save state on change
+  useEffect(() => { saveState(state); }, [state]);
+
+  // Load topics
+  useEffect(() => {
+    (async () => {
+      try {
+        const resp = await fetch('topics/manifest.json');
+        const manifestData = await resp.json();
+        const manifest = Array.isArray(manifestData) ? manifestData : (manifestData.topics || []);
+        const loaded = [];
+        for (let i = 0; i < manifest.length; i++) {
+          try {
+            const r = await fetch('topics/' + manifest[i]);
+            const text = await r.text();
+            loaded.push(parseMD(text, manifest[i], i));
+          } catch(e) { console.warn('Failed to load', manifest[i], e); }
+          setLoadProgress(Math.round(((i+1)/manifest.length)*100));
+        }
+        setTopics(loaded);
+      } catch(e) {
+        console.warn('Manifest fetch failed, using embedded topics if any', e);
+        setTopics([]);
+      }
+      setLoading(false);
+    })();
+  }, []);
+
+  // Streak update on load
+  useEffect(() => {
+    if (loading) return;
+    const today = getToday();
+    setState(prev => {
+      const s = { ...prev };
+      const last = s.streak.lastActiveDate;
+      if (last === today) return prev;
+      // Calculate days between
+      if (last) {
+        const diff = Math.floor((new Date(today) - new Date(last)) / 86400000);
+        if (diff === 1) s.streak.count += 1;
+        else if (diff > 1) s.streak.count = 1;
+      } else { s.streak.count = 1; }
+      s.streak.lastActiveDate = today;
+      if (!s.daysLogged.includes(today)) s.daysLogged = [...s.daysLogged, today];
+      s.sessionStartXP = s.xp;
+      // Reset night tracking
+      if (isNightOwlHours()) { s.nightQuizCorrect = 0; s.nightQuizTotal = 0; s.nightStart = Date.now(); }
+      return s;
+    });
+  }, [loading]);
+
+  // Toast system
+  const addToast = useCallback((text, type='info', duration=3500) => {
+    const id = ++toastIdRef.current;
+    setToasts(prev => [...prev, { id, text, type }]);
+    setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), duration);
+  }, []);
+
+  // Sound helper
+  const playSound = useCallback((type) => { if(state.soundEnabled) SoundEngine.play(type); }, [state.soundEnabled]);
+
+  // Multiplier calculation
+  const getMultiplier = useCallback(() => {
+    let m = 1;
+    m *= getStreakMultiplier(state.streak.count);
+    if (isNightOwlHours()) m *= 1.3;
+    if (state.challengeBonus.expiresAt && new Date(state.challengeBonus.expiresAt) > new Date()) m *= state.challengeBonus.multiplier;
+    if (state.hotStreak.bonusExpiresAt && new Date(state.hotStreak.bonusExpiresAt) > new Date()) m *= 1.8;
+    if (state.boostExpiry && new Date(state.boostExpiry) > new Date()) m *= 1.5;
+    return Math.min(5, Math.round(m * 100) / 100);
+  }, [state]);
+
+  // Award XP
+  const awardXP = useCallback((base, source) => {
+    const mult = getMultiplier();
+    const xpGain = Math.round(base * mult);
+    setState(prev => {
+      const s = { ...prev, xp: prev.xp + xpGain };
+      // Coins from XP (10 per 100)
+      const oldHundreds = Math.floor(prev.xp / 100);
+      const newHundreds = Math.floor(s.xp / 100);
+      const coinGain = (newHundreds - oldHundreds) * 10;
+      if (coinGain > 0) { s.coins = (s.coins||0) + coinGain; s.coinsLifetime = (s.coinsLifetime||0) + coinGain; }
+      // Level up check
+      const oldLevel = getLevelInfo(prev.xp);
+      const newLevel = getLevelInfo(s.xp);
+      if (newLevel.level > oldLevel.level) {
+        s.level = newLevel.level;
+        s.coins += 50; s.coinsLifetime += 50;
+        setTimeout(() => {
+          confetti({ particleCount: 150, spread: 90, origin: { y: 0.6 }, colors: ['#f59e0b','#a855f7','#22d3ee','#ec4899'] });
+          addToast(`🎉 LEVEL UP! You're now a ${newLevel.name}!`, 'level', 5000);
+          playSound('levelup');
+          setOwlSpin(true); setTimeout(() => setOwlSpin(false), 700);
+        }, 100);
+      }
+      return s;
+    });
+    addToast(`+${xpGain} XP ${mult > 1 ? `(×${mult})` : ''}`, 'xp', 2500);
+    playSound('xp');
+  }, [getMultiplier, addToast, playSound]);
+
+  // Award coins directly
+  const awardCoins = useCallback((amount, reason) => {
+    setState(prev => ({ ...prev, coins: prev.coins + amount, coinsLifetime: prev.coinsLifetime + amount }));
+    playSound('coin');
+  }, [playSound]);
+
+  // Badge unlock
+  const unlockBadge = useCallback((badgeId) => {
+    setState(prev => {
+      if (prev.badges.includes(badgeId)) return prev;
+      const s = { ...prev, badges: [...prev.badges, badgeId], coins: prev.coins + 25, coinsLifetime: prev.coinsLifetime + 25 };
+      const badge = BADGE_DEFS.find(b => b.id === badgeId);
+      setTimeout(() => {
+        addToast(`🏅 Badge: ${badge?.name || badgeId}!`, 'badge', 4000);
+        playSound('badge');
+        confetti({ particleCount: 60, spread: 50, origin: { y: 0.5 } });
+      }, 200);
+      return s;
+    });
+  }, [addToast, playSound]);
+
+  // Check badges
+  const checkBadges = useCallback(() => {
+    const s = state;
+    // Streak badges
+    if (s.streak.count >= 3 && !s.badges.includes('3am-warrior')) unlockBadge('3am-warrior');
+    if (s.streak.count >= 7 && !s.badges.includes('night-owl-legend')) unlockBadge('night-owl-legend');
+    if (s.streak.count >= 14 && !s.badges.includes('nocturnist-ironman')) unlockBadge('nocturnist-ironman');
+    if (s.streak.count >= 30 && !s.badges.includes('eternal-moonlight')) unlockBadge('eternal-moonlight');
+    // Quiz count badges
+    const totalQuizzes = Object.keys(s.quizAnswers).length;
+    if (totalQuizzes >= 100 && !s.badges.includes('100-pager-pulls')) unlockBadge('100-pager-pulls');
+    if (totalQuizzes >= 200 && !s.badges.includes('quiz-crusher')) unlockBadge('quiz-crusher');
+    // Topics opened
+    if (s.topicsOpened.length >= 15 && !s.badges.includes('topic-tourist')) unlockBadge('topic-tourist');
+    // Days logged
+    if (s.daysLogged.length >= 50 && !s.badges.includes('daily-dose')) unlockBadge('daily-dose');
+    // Hot streak
+    if (s.consecutiveCorrect >= 5 && !s.badges.includes('hot-pager')) unlockBadge('hot-pager');
+    // Multiplier
+    if (getMultiplier() >= 5 && !s.badges.includes('master-multiplier')) unlockBadge('master-multiplier');
+    // Secret: coins lifetime
+    if (s.coinsLifetime >= 500 && !s.badges.includes('coffee-iv-addict')) unlockBadge('coffee-iv-addict');
+    // All micro
+    if (topics.length > 0) {
+      const allMicro = topics.every(t => t.micro_questions.every(mq => s.microFlipped.includes(mq.q_id)));
+      if (allMicro && topics.some(t=>t.micro_questions.length>0) && !s.badges.includes('ama-whisperer')) unlockBadge('ama-whisperer');
+    }
+    // Topic mastery badges
+    topics.forEach(t => {
+      const badgeDef = BADGE_DEFS.filter(b=>b.cat==='topic').find(b => {
+        const searchText = (t.title + ' ' + t.tags.join(' ')).toLowerCase();
+        return b.keywords.some(kw => searchText.includes(kw));
+      });
+      if (!badgeDef || s.badges.includes(badgeDef.id)) return;
+      const allQuizCorrect = t.abim_cases.length > 0 && t.abim_cases.every(c => s.quizCorrect[c.case_id]);
+      const allMicroFlipped = t.micro_questions.length > 0 && t.micro_questions.every(mq => s.microFlipped.includes(mq.q_id));
+      if (allQuizCorrect && allMicroFlipped) unlockBadge(badgeDef.id);
+    });
+  }, [state, topics, unlockBadge, getMultiplier]);
+
+  useEffect(() => { if(!loading && topics.length) checkBadges(); }, [state.xp, state.badges.length, state.microFlipped.length, state.consecutiveCorrect]);
+
+  // Navigate to topic
+  const openTopic = useCallback((topicId) => {
+    setActiveTopic(topicId);
+    setView('topic');
+    setSidebarOpen(false);
+    setState(prev => {
+      const s = { ...prev };
+      if (!s.topicsOpened.includes(topicId)) {
+        s.topicsOpened = [...s.topicsOpened, topicId];
+        setTimeout(() => awardXP(75, 'topic-open'), 300);
+      }
+      s.topicStartTimes = { ...s.topicStartTimes, [topicId]: Date.now() };
+      return s;
+    });
+  }, [awardXP]);
+
+  const currentTopic = topics.find(t => t.id === activeTopic);
+  const levelInfo = getLevelInfo(state.xp);
+  const multiplier = getMultiplier();
+  const challenge = getWeeklyChallenge();
+
+  const gameCtx = useMemo(() => ({
+    state, setState, topics, awardXP, awardCoins, unlockBadge, addToast, playSound,
+    getMultiplier, levelInfo, multiplier, challenge, openTopic, checkBadges,
+  }), [state, topics, awardXP, awardCoins, unlockBadge, addToast, playSound, getMultiplier, levelInfo, multiplier, challenge, openTopic, checkBadges]);
+
+  if (loading) return <LoadingScreen progress={loadProgress} />;
+
+  return (
+    <GameContext.Provider value={gameCtx}>
+      {/* Toasts */}
+      <div className="toast-container">
+        {toasts.map(t => <div key={t.id} className={`toast toast-${t.type}`}>{t.text}</div>)}
+      </div>
+
+      {/* Mobile top bar */}
+      <div className="mobile-topbar">
+        <button className="hamburger" onClick={() => setSidebarOpen(true)}>☰</button>
+        <span style={{fontFamily:'var(--font-heading)',fontWeight:800,fontSize:15}} className="gradient-text">Night Float</span>
+        <div style={{marginLeft:'auto',display:'flex',alignItems:'center',gap:8}}>
+          <span style={{fontSize:12,color:'var(--cyan)',fontWeight:700}}>Lv{levelInfo.level}</span>
+          <span style={{fontSize:12,color:'var(--purple)',fontWeight:700}}>×{multiplier}</span>
+          <span style={{cursor:'pointer',fontSize:18}} onClick={() => setShowProfile(true)}>🦉</span>
+        </div>
+      </div>
+
+      {/* Mobile overlay */}
+      <div className={`mobile-overlay ${sidebarOpen?'open':''}`} onClick={() => setSidebarOpen(false)} />
+
+      {/* Sidebar */}
+      <div className={`sidebar ${sidebarOpen?'open':''}`}>
+        <div className="sidebar-header">
+          <div className="sidebar-logo gradient-text">Night Float Companion</div>
+          <div className="sidebar-tagline">Your On-Call Reference Guide</div>
+        </div>
+
+        <div className="progress-section">
+          <div className="progress-monitor">
+            <div className="progress-level-name">{levelInfo.name}</div>
+            <div className="progress-level-num">Level {levelInfo.level}</div>
+            <div className="progress-bar-track">
+              <div className="progress-bar-fill" style={{width: `${levelInfo.progress*100}%`}} />
+              <div className={`progress-owl ${owlSpin?'spinning':''}`} style={{left: `${Math.max(2,levelInfo.progress*100-4)}%`}}>
+                {state.shop.equipped.avatar ? (SHOP_ITEMS.avatars.find(a=>a.id===state.shop.equipped.avatar)?.emoji || '🦉') : '🦉'}
+              </div>
+            </div>
+            <div className="progress-xp-text">
+              <span>{state.xp.toLocaleString()} / {levelInfo.nextXp.toLocaleString()} XP</span>
+              <span>{(levelInfo.nextXp - state.xp).toLocaleString()} to go</span>
+            </div>
+            <div className={`multiplier-badge ${multiplier >= 3 ? 'high' : ''}`} onClick={() => addToast(`Streak ×${getStreakMultiplier(state.streak.count)} ${isNightOwlHours()?'• Night ×1.3':''}`, 'info')}>
+              ×{multiplier} <span style={{fontSize:11,opacity:0.7}}>multiplier</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="coins-section">
+          <div className="coins-display" onClick={() => state.level >= 3 ? setShowShop(true) : addToast('🔒 Shop unlocks at Level 3','info')}>
+            🪙 <span>{state.coins.toLocaleString()}</span>
+            <span style={{fontSize:11,opacity:0.6,marginLeft:'auto'}}>{state.level >= 3 ? 'Shop' : 'Lv3'}</span>
+          </div>
+        </div>
+
+        <div className="topic-list">
+          {topics.map((t, i) => (
+            <div key={t.id} className={`topic-list-item ${activeTopic === t.id ? 'active' : ''}`} onClick={() => openTopic(t.id)}>
+              <div className="dot" style={{background: ACCENT_COLORS[i % ACCENT_COLORS.length]}} />
+              <span style={{flex:1, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>{t.title}</span>
+              {state.topicsOpened.includes(t.id) && <span style={{fontSize:11,opacity:0.5}}>✓</span>}
+            </div>
+          ))}
+        </div>
+
+        <div className="challenge-widget">
+          <div className="challenge-title">📊 Weekly Challenge</div>
+          <div className="challenge-name">{challenge.name}</div>
+          <div style={{fontSize:11,color:'var(--text-muted)',marginBottom:6}}>{challenge.desc}</div>
+          <div className="challenge-progress-bar">
+            <div className="challenge-progress-fill" style={{width:`${Math.min(100,(state.weeklyChallenge.progress||0)/challenge.target*100)}%`}} />
+          </div>
+        </div>
+
+        <div className="sidebar-footer">
+          <div className="sound-toggle" onClick={() => setState(p => ({...p, soundEnabled:!p.soundEnabled}))}>
+            <div className={`toggle-switch ${state.soundEnabled?'on':''}`} />
+            <span>{state.soundEnabled ? '🔊' : '🔇'} Sound</span>
+          </div>
+          <div style={{marginTop:8,fontSize:11,color:'var(--text-muted)'}}>
+            🔥 {state.streak.count}-day streak
+          </div>
+          <div style={{marginTop:4,cursor:'pointer',fontSize:12,color:'var(--text-muted)'}} onClick={() => setShowProfile(true)}>
+            🦉 Profile & Badges
+          </div>
+        </div>
+      </div>
+
+      {/* Main content */}
+      <div className="main-content">
+        {view === 'home' && <HomeView topics={topics} onSelectTopic={openTopic} />}
+        {view === 'topic' && currentTopic && <TopicView topic={currentTopic} onBack={() => {setView('home'); setActiveTopic(null);}} />}
+      </div>
+
+      {/* Modals */}
+      {showProfile && <ProfileModal onClose={() => setShowProfile(false)} onOpenShop={() => {setShowProfile(false); setShowShop(true);}} />}
+      {showShop && <ShopModal onClose={() => setShowShop(false)} />}
+    </GameContext.Provider>
+  );
+}
+
+// ═══════════════════════════════════════════════════
+// LOADING SCREEN
+// ═══════════════════════════════════════════════════
+function LoadingScreen({ progress }) {
+  return (
+    <div className="loading-screen">
+      <div className="loading-owl">🦉</div>
+      <div className="gradient-text" style={{fontFamily:'var(--font-heading)',fontSize:24,fontWeight:800}}>Night Float Companion</div>
+      <div className="loading-bar"><div className="loading-bar-fill" style={{width:`${progress}%`}} /></div>
+      <div className="loading-text">Loading topics... {progress}%</div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════
+// HOME VIEW
+// ═══════════════════════════════════════════════════
+function HomeView({ topics, onSelectTopic }) {
+  const { state, levelInfo } = useContext(GameContext);
+  return (
+    <div>
+      <div className="home-hero">
+        <div className="home-title gradient-text">Night Float Companion</div>
+        <div className="home-subtitle">Evidence-based topic cards, clinical pearls, orders, and board-style questions for your night float rotation.</div>
+        {state.streak.count >= 3 && (
+          <div className="streak-banner">🔥 {state.streak.count}-day streak — ×{getStreakMultiplier(state.streak.count)} multiplier!</div>
+        )}
+        <div style={{marginTop:12,fontSize:12,color:'var(--text-muted)'}}>{topics.length} topics loaded</div>
+      </div>
+      <div className="topic-grid">
+        {topics.map((t, i) => (
+          <div key={t.id} className="topic-card" style={{borderColor: ACCENT_COLORS[i%ACCENT_COLORS.length], animationDelay: `${i*0.05}s`, boxShadow: `0 4px 20px ${ACCENT_COLORS[i%ACCENT_COLORS.length]}15`}} onClick={() => onSelectTopic(t.id)}>
+            <div className="topic-card-title" style={{color: ACCENT_COLORS[i%ACCENT_COLORS.length]}}>{t.title}</div>
+            <div className="topic-card-tags">
+              {t.tags.slice(0,3).map(tag => <span key={tag} className="tag-pill">{tag}</span>)}
+            </div>
+            <div className="topic-card-meta">
+              {t.abim_cases.length > 0 && <span>🧠 {t.abim_cases.length} cases</span>}
+              {t.micro_questions.length > 0 && <span>⚡ {t.micro_questions.length} micro-Qs</span>}
+            </div>
+            {state.topicsOpened.includes(t.id) && <div className="topic-card-check">✓</div>}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════
+// TOPIC DETAIL VIEW
+// ═══════════════════════════════════════════════════
+function TopicView({ topic, onBack }) {
+  const { state } = useContext(GameContext);
+  return (
+    <div>
+      <button className="back-btn" onClick={onBack}>← Back to Topics</button>
+      <div className="topic-detail-title gradient-text">{topic.title}</div>
+      {topic.panic_card.length > 0 && <SectionCard title="🚨 Panic Card" items={topic.panic_card} type="panic" />}
+      {topic.brief_overview.length > 0 && <SectionCard title="📋 Overview" items={topic.brief_overview} type="overview" />}
+      {topic.icu_consult_triggers.length > 0 && <SectionCard title="🏥 ICU Triggers" items={topic.icu_consult_triggers} type="icu" />}
+      {topic.orders_to_place_now.length > 0 && <SectionCard title="💊 Orders to Place Now" items={topic.orders_to_place_now} type="orders" />}
+      {topic.abim_cases.length > 0 && <QuizSection cases={topic.abim_cases} />}
+      {topic.micro_questions.length > 0 && <MicroSection questions={topic.micro_questions} />}
+      {topic.references.length > 0 && <ReferencesSection refs={topic.references} />}
+      {topic.cdi.length > 0 && <SectionCard title="📝 CDI Tips" items={topic.cdi} type="cdi" />}
+    </div>
+  );
+}
+
+function renderBulletText(text) {
+  // Highlight {curly brace} content
+  const parts = text.split(/(\{[^}]+\})/g);
+  return parts.map((part, i) => {
+    if (part.startsWith('{') && part.endsWith('}')) {
+      return <span key={i} className="order-pill">{part.slice(1,-1)}</span>;
+    }
+    // Bold **text**
+    const boldParts = part.split(/(\*\*[^*]+\*\*)/g);
+    return boldParts.map((bp, j) => {
+      if (bp.startsWith('**') && bp.endsWith('**')) return <strong key={`${i}-${j}`} style={{color:'var(--text-primary)'}}>{bp.slice(2,-2)}</strong>;
+      return <span key={`${i}-${j}`}>{bp}</span>;
+    });
+  });
+}
+
+function SectionCard({ title, items, type }) {
+  const className = `section-card ${type === 'panic' ? 'panic' : type === 'icu' ? 'icu' : type === 'orders' ? 'orders' : type === 'cdi' ? 'cdi' : ''}`;
+  return (
+    <div className={className}>
+      <div className="section-header">{title}</div>
+      <ul className="bullet-list">
+        {items.map((item, i) => {
+          let cls = '';
+          if (/^Guideline Must.Know/i.test(item)) cls = 'guideline';
+          else if (/^Pitfall/i.test(item)) cls = 'pitfall';
+          return <li key={i} className={cls}>{renderBulletText(item)}</li>;
+        })}
+      </ul>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════
+// QUIZ SECTION
+// ═══════════════════════════════════════════════════
+function QuizSection({ cases }) {
+  return (
+    <div className="section-card">
+      <div className="section-header">🧠 ABIM-Style Cases</div>
+      {cases.map(c => <QuizCard key={c.case_id} caseData={c} />)}
+    </div>
+  );
+}
+
+function QuizCard({ caseData }) {
+  const { state, setState, awardXP, playSound, addToast, checkBadges } = useContext(GameContext);
+  const answered = state.quizAnswers[caseData.case_id];
+  const wasCorrect = state.quizCorrect[caseData.case_id];
+
+  const handleAnswer = (letter) => {
+    if (answered) return;
+    const correct = letter === caseData.correct;
+    setState(prev => {
+      const s = { ...prev };
+      s.quizAnswers = { ...s.quizAnswers, [caseData.case_id]: letter };
+      s.quizCorrect = { ...s.quizCorrect, [caseData.case_id]: correct };
+      if (correct) {
+        s.consecutiveCorrect = (s.consecutiveCorrect || 0) + 1;
+        s.nightQuizCorrect = (s.nightQuizCorrect||0)+1;
+        // Hot streak check
+        if (s.consecutiveCorrect >= 5 && (!s.hotStreak.bonusExpiresAt || new Date(s.hotStreak.bonusExpiresAt) < new Date())) {
+          s.hotStreak = { count: s.consecutiveCorrect, bonusExpiresAt: new Date(Date.now()+600000).toISOString() };
+          setTimeout(() => { addToast('🔥 HOT STREAK! ×1.8 for 10 minutes!', 'level', 4000); playSound('multiplier'); }, 500);
+        }
+      } else { s.consecutiveCorrect = 0; }
+      s.nightQuizTotal = (s.nightQuizTotal||0)+1;
+      return s;
+    });
+    if (correct) { awardXP(150, 'quiz'); playSound('correct'); confetti({particleCount:30,spread:40,origin:{y:0.7}}); }
+    else playSound('wrong');
+  };
+
+  return (
+    <div className="quiz-card">
+      <div className="quiz-stem">{caseData.stem}</div>
+      <div className="quiz-options">
+        {caseData.options.map(opt => {
+          let cls = 'quiz-option';
+          if (answered) {
+            cls += ' disabled';
+            if (opt.letter === caseData.correct) cls += answered === opt.letter ? ' correct' : ' correct-highlight';
+            else if (opt.letter === answered) cls += ' incorrect';
+          }
+          return (
+            <div key={opt.letter} className={cls} onClick={() => handleAnswer(opt.letter)}>
+              <span className="letter">{opt.letter}.</span>
+              <span>{opt.text}</span>
+              {answered && opt.letter === caseData.correct && <span style={{marginLeft:'auto'}}>✓</span>}
+              {answered && opt.letter === answered && opt.letter !== caseData.correct && <span style={{marginLeft:'auto'}}>✗</span>}
+            </div>
+          );
+        })}
+      </div>
+      {answered && caseData.explanation && (
+        <div className="quiz-explanation">
+          <strong style={{color:'var(--cyan)'}}>Explanation:</strong> {caseData.explanation}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════
+// MICRO QUESTIONS
+// ═══════════════════════════════════════════════════
+function MicroSection({ questions }) {
+  return (
+    <div className="section-card">
+      <div className="section-header">⚡ Rapid Self-Check</div>
+      <div className="micro-grid">
+        {questions.map(q => <FlipCard key={q.q_id} data={q} />)}
+      </div>
+    </div>
+  );
+}
+
+function FlipCard({ data }) {
+  const { state, setState, awardXP, playSound } = useContext(GameContext);
+  const isFlipped = state.microFlipped.includes(data.q_id);
+  const [localFlip, setLocalFlip] = useState(isFlipped);
+
+  const handleFlip = () => {
+    if (isFlipped) { setLocalFlip(!localFlip); return; }
+    setLocalFlip(true);
+    setState(prev => ({ ...prev, microFlipped: [...prev.microFlipped, data.q_id] }));
+    awardXP(40, 'micro');
+  };
+
+  return (
+    <div className={`flip-card ${localFlip ? 'flipped' : ''} ${isFlipped ? 'done' : ''}`} onClick={handleFlip}>
+      <div className="flip-card-inner">
+        <div className="flip-card-front">
+          <div style={{fontWeight:600,fontSize:13}}>{renderBulletText(data.question)}</div>
+          <div className="flip-hint">Tap to reveal</div>
+        </div>
+        <div className="flip-card-back">
+          <div>{renderBulletText(data.answer)}</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════
+// REFERENCES
+// ═══════════════════════════════════════════════════
+function ReferencesSection({ refs }) {
+  return (
+    <div className="section-card">
+      <div className="section-header">📚 References</div>
+      {refs.map((r, i) => (
+        r.url ? <a key={i} className="ref-link" href={r.url} target="_blank" rel="noopener">{r.label}</a>
+        : <div key={i} style={{padding:'6px 0',fontSize:13,color:'var(--text-muted)'}}>{r.label}</div>
+      ))}
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════
+// PROFILE MODAL
+// ═══════════════════════════════════════════════════
+function ProfileModal({ onClose, onOpenShop }) {
+  const { state, levelInfo, topics } = useContext(GameContext);
+
+  const visibleBadges = BADGE_DEFS.filter(b => {
+    if (b.cat === 'topic') {
+      return topics.some(t => {
+        const text = (t.title + ' ' + t.tags.join(' ')).toLowerCase();
+        return b.keywords.some(kw => text.includes(kw));
+      });
+    }
+    return true;
+  });
+
+  const exportProgress = () => {
+    const blob = new Blob([JSON.stringify(state, null, 2)], {type:'application/json'});
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+    a.download = 'night-float-progress.json'; a.click();
+  };
+
+  const importProgress = () => {
+    const input = document.createElement('input'); input.type = 'file'; input.accept = '.json';
+    input.onchange = (e) => {
+      const file = e.target.files[0]; if(!file) return;
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        try { const data = JSON.parse(ev.target.result); localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); window.location.reload(); }
+        catch { alert('Invalid progress file'); }
+      };
+      reader.readAsText(file);
+    };
+    input.click();
+  };
+
+  const resetProgress = () => {
+    const confirm = prompt('Type RESET to confirm:');
+    if (confirm === 'RESET') { localStorage.removeItem(STORAGE_KEY); window.location.reload(); }
+  };
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-content" onClick={e => e.stopPropagation()}>
+        <div className="modal-header">
+          <span style={{fontFamily:'var(--font-heading)',fontSize:20,fontWeight:800}} className="gradient-text">Profile</span>
+          <button className="modal-close" onClick={onClose}>✕</button>
+        </div>
+        <div className="modal-body">
+          <div style={{textAlign:'center',marginBottom:20}}>
+            <div style={{fontSize:48,marginBottom:8}}>
+              {state.shop.equipped.avatar ? (SHOP_ITEMS.avatars.find(a=>a.id===state.shop.equipped.avatar)?.emoji || '🦉') : '🦉'}
+            </div>
+            <div style={{fontFamily:'var(--font-heading)',fontSize:22,fontWeight:800,color:'var(--cyan)'}}>{levelInfo.name}</div>
+            <div style={{fontSize:13,color:'var(--text-muted)'}}>Level {levelInfo.level}</div>
+          </div>
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginBottom:20}}>
+            {[
+              ['Total XP', state.xp.toLocaleString()],
+              ['Night Coins', `🪙 ${state.coins}`],
+              ['Streak', `🔥 ${state.streak.count} days`],
+              ['Days Logged', state.daysLogged.length],
+              ['Quizzes Done', Object.keys(state.quizAnswers).length],
+              ['Lifetime Coins', state.coinsLifetime],
+            ].map(([label, val]) => (
+              <div key={label} style={{background:'rgba(15,23,42,0.5)',borderRadius:10,padding:'10px 12px',border:'1px solid rgba(99,102,241,0.08)'}}>
+                <div style={{fontSize:11,color:'var(--text-muted)'}}>{label}</div>
+                <div style={{fontSize:15,fontWeight:700}}>{val}</div>
+              </div>
+            ))}
+          </div>
+          <div style={{fontSize:14,fontWeight:700,marginBottom:8}}>Badges ({state.badges.length}/{visibleBadges.length})</div>
+          <div className="badge-grid">
+            {visibleBadges.map(b => {
+              const unlocked = state.badges.includes(b.id);
+              const isSecret = b.cat === 'secret' && !unlocked;
+              return (
+                <div key={b.id} className="badge-item" title={unlocked ? b.name : (isSecret ? '???' : b.name)}>
+                  <div className={`badge-icon ${unlocked ? 'unlocked' : 'locked'}`}>
+                    {isSecret ? '❓' : b.emoji}
+                  </div>
+                  <div className={`badge-name ${unlocked ? '' : 'locked'}`}>
+                    {isSecret ? '???' : b.name}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          <div style={{display:'flex',gap:8,marginTop:20,flexWrap:'wrap'}}>
+            {state.level >= 3 && <button className="shop-btn buy" onClick={onOpenShop}>🛒 Shop</button>}
+            <button className="shop-btn equip" onClick={exportProgress}>📤 Export</button>
+            <button className="shop-btn equip" onClick={importProgress}>📥 Import</button>
+            <button className="shop-btn" style={{background:'rgba(239,68,68,0.15)',color:'var(--red)'}} onClick={resetProgress}>🗑️ Reset</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════
+// SHOP MODAL
+// ═══════════════════════════════════════════════════
+function ShopModal({ onClose }) {
+  const { state, setState, addToast, playSound } = useContext(GameContext);
+  const [tab, setTab] = useState('avatars');
+
+  const buy = (item) => {
+    if (state.coins < item.price) { addToast('Not enough coins!', 'info'); return; }
+    if (state.shop.purchased.includes(item.id)) return;
+    setState(prev => ({
+      ...prev,
+      coins: prev.coins - item.price,
+      shop: { ...prev.shop, purchased: [...prev.shop.purchased, item.id] }
+    }));
+    confetti({particleCount:40,spread:40,origin:{y:0.6}});
+    addToast(`🛍️ ${item.name} acquired!`, 'shop');
+    playSound('coin');
+  };
+
+  const equip = (item, type) => {
+    setState(prev => ({
+      ...prev,
+      shop: { ...prev.shop, equipped: { ...prev.shop.equipped, [type]: prev.shop.equipped[type] === item.id ? null : item.id } }
+    }));
+  };
+
+  const renderItems = () => {
+    if (tab === 'avatars') return SHOP_ITEMS.avatars.map(item => <ShopItemRow key={item.id} item={item} owned={state.shop.purchased.includes(item.id)} equipped={state.shop.equipped.avatar===item.id} canAfford={state.coins>=item.price} onBuy={()=>buy(item)} onEquip={()=>equip(item,'avatar')} />);
+    if (tab === 'memes') return SHOP_ITEMS.memes.map(item => <ShopItemRow key={item.id} item={item} owned={state.shop.purchased.includes(item.id)} equipped={state.shop.equipped.meme===item.id} canAfford={state.coins>=item.price} onBuy={()=>buy(item)} onEquip={()=>equip(item,'meme')} />);
+    if (tab === 'certs') return SHOP_ITEMS.certs.map(item => <ShopItemRow key={item.id} item={item} owned={state.shop.purchased.includes(item.id)} canAfford={state.coins>=item.price} onBuy={()=>buy(item)} />);
+    if (tab === 'boosts') return SHOP_ITEMS.boosts.map(item => <ShopItemRow key={item.id} item={{...item, owned: !item.consumable && state.shop.purchased.includes(item.id)}} owned={!item.consumable && state.shop.purchased.includes(item.id)} canAfford={state.coins>=item.price} onBuy={()=>buy(item)} />);
+    return null;
+  };
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-content" onClick={e => e.stopPropagation()}>
+        <div className="modal-header">
+          <span style={{fontFamily:'var(--font-heading)',fontSize:20,fontWeight:800}} className="gradient-text">Night Shop</span>
+          <button className="modal-close" onClick={onClose}>✕</button>
+        </div>
+        <div className="modal-body">
+          <div style={{textAlign:'center',fontSize:22,fontWeight:700,color:'var(--amber)',marginBottom:16}}>🪙 {state.coins.toLocaleString()}</div>
+          <div className="shop-tabs">
+            {[['avatars','🎩 Avatars'],['memes','😂 Memes'],['certs','📜 Certs'],['boosts','🚀 Boosts']].map(([k,label]) => (
+              <div key={k} className={`shop-tab ${tab===k?'active':''}`} onClick={()=>setTab(k)}>{label}</div>
+            ))}
+          </div>
+          {renderItems()}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ShopItemRow({ item, owned, equipped, canAfford, onBuy, onEquip }) {
+  return (
+    <div className="shop-item">
+      <span style={{fontSize:22}}>{item.emoji || '🎁'}</span>
+      <div className="shop-item-info">
+        <div className="shop-item-name">{item.name}</div>
+        {item.desc && <div className="shop-item-desc">{item.desc}</div>}
+      </div>
+      {owned ? (
+        <div style={{display:'flex',gap:4}}>
+          <span className="shop-btn owned">✅</span>
+          {onEquip && <button className={`shop-btn ${equipped?'owned':'equip'}`} onClick={onEquip}>{equipped?'Worn':'Equip'}</button>}
+        </div>
+      ) : (
+        <button className="shop-btn buy" disabled={!canAfford} onClick={onBuy}>🪙 {item.price}</button>
+      )}
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════
+// RENDER
+// ═══════════════════════════════════════════════════
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>
